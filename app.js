@@ -7,9 +7,39 @@ server.use(bodyParser.urlencoded({ limit: '5mb', extended: true }));
 import cors from "cors";
 server.use(cors());
 
+import customEnv from 'custom-env';
+customEnv.env('local', './config');
+
+import net from 'net';
+const addresses = process.env.ADDRESSES_TCP_INIT.split(',');
+const sendData = (data) => {
+    return new Promise((resolve, reject) => {
+        const client = new net.Socket();
+        client.connect(process.env.PORT_TCP, process.env.IP_ADDRESS_TCP, function() {
+            client.write(data);
+        });
+
+        client.on('error', function(err) {
+            console.log('Error: ' + err);
+            reject(err);
+        });
+
+        client.on('end', function() {
+            client.end()
+            resolve();
+        });
+    });
+}
+// Usage
+(async () => {
+    await sendData(process.env.TCP_INIT); // Only wait for the first data to be sent
+    for(let i = 0; i < addresses.length; i++) {
+        sendData(addresses[i]); // Don't wait for the rest of the data to be sent
+    }
+})();
 
 import mongoose from "mongoose";
-mongoose.connect("mongodb://127.0.0.1:27017/foobar_db", {
+mongoose.connect(process.env.CONNECTION_STRING, {
     useNewUrlParser: true,
     useUnifiedTopology: true
 });
@@ -45,6 +75,6 @@ server.get("/*", (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-server.listen(8080, () => {
+server.listen(process.env.PORT, () => {
     console.log("Server is running on port 8080 ");
 });
